@@ -61,6 +61,7 @@
 #include "formats.h"
 #include "internal.h"
 #include "video.h"
+#include "vf_drawtext.h"
 
 #if CONFIG_LIBFRIBIDI
 #include <fribidi.h>
@@ -1019,6 +1020,108 @@ static int func_pts(AVFilterContext *ctx, AVBPrint *bp,
     return 0;
 }
 
+int func_bincode(AVFilterContext *ctx, AVBPrint *bp,
+                          char *fct, unsigned argc, char **argv, int tag)
+{
+    time_t now;
+    short counted, i;
+    //char timecode[10];
+
+    time(&now);
+    //strftime(timecode, sizeof(timecode), "%H:%M:%S", gmtime(&now));
+    //av_bprintf(bp, "time==%s\n", timecode);
+    counted = 0;
+    while (now) {
+        if (now & 1) av_bprintf(bp, "<"); // < is detected as 1
+        else av_bprintf(bp, ">"); // > is detected as 0
+        now >>= 1;
+        counted++;
+    }
+    // Zero pad upto 32 bits
+    for (i = counted; i < 32; i++) {
+        av_bprintf(bp, ">");
+    }
+    return 0;
+}
+
+int g_todframerate = -1;
+int g_msecOffset = 0;
+
+// Print the current time of day as timecode, assuming 30fps
+int func_tod(AVFilterContext *ctx, AVBPrint *bp,
+                          char *fct, unsigned argc, char **argv, int tag)
+{
+    struct timespec spec;
+    double nsPerFrame;
+    int frameOffset;
+    char hms[10];
+    int ret;
+    long workingNS;
+    long workingMS;
+    long workingS;
+
+    if (g_todframerate < 0) {
+        if (argc >= 1) {
+            ret = sscanf(argv[0], "%u", &g_todframerate);
+            if (ret) {
+                av_log(ctx, AV_LOG_INFO, "TOD: Using supplied framerate of %d\n", g_todframerate);
+            } else {
+                av_log(ctx, AV_LOG_WARNING, "TOD: Can't parse supplied framerate of %s\n", argv[0]);
+            }
+        }
+        if (g_todframerate < 0) {
+            g_todframerate = 25;
+            av_log(ctx, AV_LOG_INFO, "TOD: Using default framerate of %d\n", g_todframerate);
+        }
+
+        if (argc >= 2) {
+            ret = sscanf(argv[1], "%d", &g_msecOffset);
+            if (ret) {
+                av_log(ctx, AV_LOG_INFO, "TOD: Using supplied millisecond offset of %d\n", g_msecOffset);
+            } else {
+                av_log(ctx, AV_LOG_WARNING, "TOD: Can't parse supplied framerate of %s\n", argv[0]);
+            }
+        }
+    }
+
+    nsPerFrame = 1000000000/g_todframerate;
+    clock_gettime(CLOCK_REALTIME, &spec);
+
+    workingNS = spec.tv_nsec;
+    workingS = spec.tv_sec;
+    workingMS = g_msecOffset;
+
+    // Shift time to match the offset (specified in milliseconds)
+    // Whittle down the milliseconds 
+    while (workingMS > 1000) {
+        workingMS = workingMS - 1000;
+        workingS++;
+    }
+    while (workingMS < 0) {
+        workingMS = workingMS + 1000;
+        workingS--;
+    }
+    
+    workingNS = workingNS + (1000 * 1000 * workingMS);
+    if (workingNS > (1000 * 1000 * 1000)) {
+        workingNS = workingNS -  (1000 * 1000 * 1000);
+        workingS++;
+    }
+        
+    //av_log(ctx, AV_LOG_INFO, "TOD: actual time %ld.%ld, shifted by %d to %ld.%ld\n", spec.tv_sec, spec.tv_nsec, g_msecOffset, workingS, workingNS);
+    
+    frameOffset = floor(workingNS/nsPerFrame);
+    strftime(hms, sizeof(hms), "%H:%M:%S", gmtime(&workingS));
+    
+    av_bprintf(bp, "%s:%02u", hms, frameOffset);
+    //av_log(ctx, AV_LOG_INFO, "%ld:%ld\n", workingS, workingNS);
+    //av_log(ctx, AV_LOG_INFO, "%s:%02u\n", hms, frameOffset);
+
+    return 0;
+}
+
+
+
 static int func_frame_num(AVFilterContext *ctx, AVBPrint *bp,
                           char *fct, unsigned argc, char **argv, int tag)
 {
@@ -1155,6 +1258,8 @@ static const struct drawtext_function {
     { "localtime", 0, 1, 'L', func_strftime },
     { "frame_num", 0, 0, 0,   func_frame_num },
     { "n",         0, 0, 0,   func_frame_num },
+    { "bincode",   0, 0, 0,   func_bincode },
+    { "tod",   0, 2, 0,   func_tod },
     { "metadata",  1, 2, 0,   func_metadata },
 };
 
