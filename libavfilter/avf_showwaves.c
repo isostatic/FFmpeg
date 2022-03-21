@@ -82,6 +82,10 @@ typedef struct ShowWavesContext {
     int mode;                   ///< ShowWavesMode
     int scale;                  ///< ShowWavesScale
     int draw_mode;              ///< ShowWavesDrawMode
+    int blockmark;              
+    int blockspace;              
+    int hide_first_bar;
+    int minvalue;              
     int split_channels;
     int filter_mode;
     uint8_t *fg;
@@ -122,6 +126,10 @@ static const AVOption showwaves_options[] = {
     { "draw", "set draw mode", OFFSET(draw_mode), AV_OPT_TYPE_INT, {.i64 = DRAW_SCALE}, 0, DRAW_NB-1, FLAGS, .unit="draw" },
         { "scale", "scale pixel values for each drawn sample", 0, AV_OPT_TYPE_CONST, {.i64=DRAW_SCALE}, .flags=FLAGS, .unit="draw"},
         { "full",  "draw every pixel for sample directly",     0, AV_OPT_TYPE_CONST, {.i64=DRAW_FULL},  .flags=FLAGS, .unit="draw"},
+        { "blockmark", "output as blocks this many pixels wide", OFFSET(blockmark), AV_OPT_TYPE_INT, {.i64=1}, 1, INT_MAX, FLAGS },
+        { "blockspace", "output as blocks with this gap between them", OFFSET(blockspace), AV_OPT_TYPE_INT, {.i64=0}, 0, INT_MAX, FLAGS },
+        { "minvalue", "minimum value to be used even if silent", OFFSET(minvalue), AV_OPT_TYPE_INT, {.i64=0}, 0, INT_MAX, FLAGS },
+        { "hide_first_bar", "if set to 1, and using blocks, don't show the first bar", OFFSET(hide_first_bar), AV_OPT_TYPE_BOOL, {.i64=0}, 0, 1, FLAGS },
     { NULL }
 };
 
@@ -694,9 +702,26 @@ static int showwaves_filter_frame(AVFilterLink *inlink, AVFrame *insamples)
     int16_t *p = (int16_t *)insamples->data[0];
     int nb_channels = inlink->channels;
     int i, j, ret = 0;
+    int16_t current_sample_value;
     const int pixstep = showwaves->pixstep;
     const int n = showwaves->n;
     const int ch_height = showwaves->split_channels ? outlink->h / nb_channels : outlink->h;
+    int blocksize;
+
+    int sum_of_samples_in_block[24];
+    int num_of_samples_in_block[24];
+    int valToDraw[24];
+
+    int marksize = showwaves->blockmark;
+    int spacesize = showwaves->blockspace;
+    int minvalue = showwaves->minvalue;
+
+    for (i = 0; i < 24; i++) {
+        valToDraw[i] = 0;
+        sum_of_samples_in_block[i] = 0;
+        num_of_samples_in_block[i] = 0;
+    }
+    blocksize = marksize + spacesize;
 
     /* draw data in the buffer */
     for (i = 0; i < nb_samples; i++) {
@@ -707,15 +732,41 @@ static int showwaves_filter_frame(AVFilterLink *inlink, AVFrame *insamples)
         outpicref = showwaves->outpicref;
 
         for (j = 0; j < nb_channels; j++) {
+            int position_in_block = 0;
+            int h = 0;
             uint8_t *buf = outpicref->data[0] + showwaves->buf_idx * pixstep;
             const int linesize = outpicref->linesize[0];
-            int h;
-
-            if (showwaves->split_channels)
+            current_sample_value = *p++;
+            sum_of_samples_in_block[j] += abs(current_sample_value);
+            num_of_samples_in_block[j] ++;
+            if (showwaves->split_channels) 
                 buf += j*ch_height*linesize;
-            h = showwaves->get_h(*p++, ch_height);
-            showwaves->draw_sample(buf, ch_height, linesize,
-                                   &showwaves->buf_idy[j], &showwaves->fg[j * 4], h);
+
+            position_in_block = i % blocksize;
+
+            if (position_in_block == 0) {
+                // if the end of a block of samples
+                valToDraw[j] = floor(sum_of_samples_in_block[j] / num_of_samples_in_block[j]);
+                if (i == 0) {
+                    // just use the first sample unless squashed
+                    valToDraw[j] = sum_of_samples_in_block[j];
+                }
+                if (valToDraw[j] < minvalue) {
+                    valToDraw[j] = minvalue;
+                }
+                if (showwaves->hide_first_bar && i == 0) {
+                    valToDraw[j] = 0;
+                }
+                sum_of_samples_in_block[j] = 0;
+                num_of_samples_in_block[j] = 0;
+                h = showwaves->get_h(valToDraw[j], ch_height);
+            }
+            if (blocksize - position_in_block < spacesize) {
+                valToDraw[j] = 0;
+            }
+            h = showwaves->get_h(valToDraw[j], ch_height);
+
+            showwaves->draw_sample(buf, ch_height, linesize, &showwaves->buf_idy[j], &showwaves->fg[j * 4], h);
         }
 
         showwaves->sample_count_mod++;
