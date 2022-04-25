@@ -1092,6 +1092,44 @@ int func_bincode(AVFilterContext *ctx, AVBPrint *bp,
     return 0;
 }
 
+int func_bincodens(AVFilterContext *ctx, AVBPrint *bp,
+                          char *fct, unsigned argc, char **argv, int tag)
+{
+    time_t now;
+    long ns, offset;
+    int ret;
+    short counted, i;
+    //char timecode[10];
+
+    offset = 0;
+    if (argc >= 1) {
+        ret = sscanf(argv[0], "%ld", &offset);
+        if (!ret) {
+            av_log(ctx, AV_LOG_WARNING, "TOD: Can't parse supplied framerate of %s, using default\n", argv[0]);
+        }
+    }
+    now = 0;
+    ns = 0;
+    get_offset_secs(ctx, offset, &now, &ns);
+
+    //strftime(timecode, sizeof(timecode), "%H:%M:%S", gmtime(&now));
+    //av_bprintf(bp, "time==%s\n", timecode);
+    //av_bprintf(bp, "time==%ld\n", now);
+    counted = 0;
+    while (ns) {
+        if (ns & 1) av_bprintf(bp, "<"); // < is detected as 1
+        else av_bprintf(bp, ">"); // > is detected as 0
+        ns >>= 1;
+        counted++;
+    }
+    // Zero pad upto 32 bits
+    for (i = counted; i < 32; i++) {
+        av_bprintf(bp, ">");
+    }
+
+
+    return 0;
+}
 int g_msecOffset = 0;
 
 // Print the current time of day as timecode, assuming 30fps
@@ -1100,7 +1138,7 @@ int func_tod(AVFilterContext *ctx, AVBPrint *bp,
 {
     time_t now;
     double nsPerFrame;
-    int frameOffset, todframerate, ret;
+    int frameOffset, todframerate, ret, curms, nsPerMs;
     long msecOffset, ns;
     char hms[10];
     char zone[20];
@@ -1132,15 +1170,18 @@ int func_tod(AVFilterContext *ctx, AVBPrint *bp,
     }
 
     nsPerFrame = 1000000000/todframerate;
+    nsPerMs = 1000000;
 
     get_offset_secs(ctx, msecOffset, &now, &ns);
     //av_log(ctx, AV_LOG_INFO, "TOD: actual time %ld.%ld, shifted by %d to %ld.%ld\n", spec.tv_sec, spec.tv_nsec, g_msecOffset, workingS, workingNS);
     
     frameOffset = floor(ns/nsPerFrame);
+    curms = floor(ns/nsPerMs);
+    curms = curms % 40;
     strftime(hms, sizeof(hms), "%H:%M:%S", gmtime(&now));
     strftime(zone, sizeof(zone), "%Z", gmtime(&now));
     
-    av_bprintf(bp, "%s:%02u %s", hms, frameOffset, zone);
+    av_bprintf(bp, "%s:%02u (+%02ums) %s", hms, frameOffset, curms, zone);
     //av_log(ctx, AV_LOG_INFO, "%ld:%ld\n", workingS, workingNS);
     //av_log(ctx, AV_LOG_INFO, "%s:%02u\n", hms, frameOffset);
 
@@ -1286,6 +1327,7 @@ static const struct drawtext_function {
     { "frame_num", 0, 0, 0,   func_frame_num },
     { "n",         0, 0, 0,   func_frame_num },
     { "bincode",   0, 1, 0,   func_bincode },
+    { "bincodens",   0, 1, 0,   func_bincodens },
     { "tod",   0, 2, 0,   func_tod },
     { "metadata",  1, 2, 0,   func_metadata },
 };

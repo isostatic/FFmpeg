@@ -22,5 +22,6 @@
 
 
 int func_bincode(AVFilterContext *ctx, AVBPrint *bp, char *fct, unsigned argc, char **argv, int tag);
+int func_bincodens(AVFilterContext *ctx, AVBPrint *bp, char *fct, unsigned argc, char **argv, int tag);
 int func_tod(AVFilterContext *ctx, AVBPrint *bp, char *fct, unsigned argc, char **argv, int tag);
 int get_offset_secs(AVFilterContext *ctx, long offset, long *sec, long *ns);
