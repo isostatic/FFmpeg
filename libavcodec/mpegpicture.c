@@ -26,9 +26,11 @@
 #include "libavutil/imgutils.h"
 
 #include "avcodec.h"
+#include "encode.h"
 #include "motion_est.h"
 #include "mpegpicture.h"
 #include "mpegutils.h"
+#include "threadframe.h"
 
 static void av_noinline free_picture_tables(Picture *pic)
 {
@@ -122,16 +124,17 @@ static int alloc_frame_buffer(AVCodecContext *avctx,  Picture *pic,
     int r, ret;
 
     pic->tf.f = pic->f;
-    if (avctx->codec_id != AV_CODEC_ID_WMV3IMAGE &&
-        avctx->codec_id != AV_CODEC_ID_VC1IMAGE  &&
-        avctx->codec_id != AV_CODEC_ID_MSS2) {
-        if (edges_needed) {
-            pic->f->width  = avctx->width  + 2 * EDGE_WIDTH;
-            pic->f->height = avctx->height + 2 * EDGE_WIDTH;
-        }
 
-        r = ff_thread_get_buffer(avctx, &pic->tf,
-                                 pic->reference ? AV_GET_BUFFER_FLAG_REF : 0);
+    if (edges_needed) {
+        pic->f->width  = avctx->width  + 2 * EDGE_WIDTH;
+        pic->f->height = avctx->height + 2 * EDGE_WIDTH;
+
+        r = ff_encode_alloc_frame(avctx, pic->f);
+    } else if (avctx->codec_id != AV_CODEC_ID_WMV3IMAGE &&
+               avctx->codec_id != AV_CODEC_ID_VC1IMAGE  &&
+               avctx->codec_id != AV_CODEC_ID_MSS2) {
+        r = ff_thread_get_ext_buffer(avctx, &pic->tf,
+                                     pic->reference ? AV_GET_BUFFER_FLAG_REF : 0);
     } else {
         pic->f->width  = avctx->width;
         pic->f->height = avctx->height;
@@ -321,7 +324,7 @@ void ff_mpeg_unref_picture(AVCodecContext *avctx, Picture *pic)
     if (avctx->codec_id != AV_CODEC_ID_WMV3IMAGE &&
         avctx->codec_id != AV_CODEC_ID_VC1IMAGE  &&
         avctx->codec_id != AV_CODEC_ID_MSS2)
-        ff_thread_release_buffer(avctx, &pic->tf);
+        ff_thread_release_ext_buffer(avctx, &pic->tf);
     else if (pic->f)
         av_frame_unref(pic->f);
 
@@ -333,7 +336,7 @@ void ff_mpeg_unref_picture(AVCodecContext *avctx, Picture *pic)
     memset((uint8_t*)pic + off, 0, sizeof(*pic) - off);
 }
 
-int ff_update_picture_tables(Picture *dst, Picture *src)
+int ff_update_picture_tables(Picture *dst, const Picture *src)
 {
     int i, ret;
 
@@ -418,7 +421,7 @@ static inline int pic_is_unused(Picture *pic)
 {
     if (!pic->f->buf[0])
         return 1;
-    if (pic->needs_realloc && !(pic->reference & DELAYED_PIC_REF))
+    if (pic->needs_realloc)
         return 1;
     return 0;
 }

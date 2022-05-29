@@ -21,10 +21,13 @@
  */
 
 #include <stdint.h>
+#include <string.h>
 
 #include "avassert.h"
-#include "common.h"
+#include "error.h"
 #include "fifo.h"
+#include "macros.h"
+#include "mem.h"
 
 // by default the FIFO can be auto-grown to 1MB
 #define AUTO_GROW_DEFAULT_BYTES (1024 * 1024)
@@ -115,7 +118,7 @@ int av_fifo_grow2(AVFifo *f, size_t inc)
                     (f->offset_w - copy) * f->elem_size);
             f->offset_w -= copy;
         } else
-            f->offset_w = f->nb_elems + copy;
+            f->offset_w = copy == inc ? 0 : f->nb_elems + copy;
     }
 
     f->nb_elems += inc;
@@ -147,12 +150,14 @@ static int fifo_write_common(AVFifo *f, const uint8_t *buf, size_t *nb_elems,
                              AVFifoCB read_cb, void *opaque)
 {
     size_t to_write = *nb_elems;
-    size_t offset_w = f->offset_w;
+    size_t offset_w;
     int         ret = 0;
 
     ret = fifo_check_space(f, to_write);
     if (ret < 0)
         return ret;
+
+    offset_w = f->offset_w;
 
     while (to_write > 0) {
         size_t    len = FFMIN(f->nb_elems - offset_w, to_write);
