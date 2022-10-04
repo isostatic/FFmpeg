@@ -554,7 +554,7 @@ static av_cold int latm_decode_init(AVCodecContext *avctx)
 
 const FFCodec ff_aac_decoder = {
     .p.name          = "aac",
-    .p.long_name     = NULL_IF_CONFIG_SMALL("AAC (Advanced Audio Coding)"),
+    CODEC_LONG_NAME("AAC (Advanced Audio Coding)"),
     .p.type          = AVMEDIA_TYPE_AUDIO,
     .p.id            = AV_CODEC_ID_AAC,
     .priv_data_size  = sizeof(AACContext),
@@ -565,10 +565,8 @@ const FFCodec ff_aac_decoder = {
         AV_SAMPLE_FMT_FLTP, AV_SAMPLE_FMT_NONE
     },
     .p.capabilities  = AV_CODEC_CAP_CHANNEL_CONF | AV_CODEC_CAP_DR1,
-    .caps_internal   = FF_CODEC_CAP_INIT_THREADSAFE | FF_CODEC_CAP_INIT_CLEANUP,
-#if FF_API_OLD_CHANNEL_LAYOUT
-    .p.channel_layouts = aac_channel_layout,
-#endif
+    .caps_internal   = FF_CODEC_CAP_INIT_CLEANUP,
+    CODEC_OLD_CHANNEL_LAYOUTS_ARRAY(aac_channel_layout)
     .p.ch_layouts    = aac_ch_layout,
     .flush = flush,
     .p.priv_class    = &aac_decoder_class,
@@ -582,7 +580,7 @@ const FFCodec ff_aac_decoder = {
 */
 const FFCodec ff_aac_latm_decoder = {
     .p.name          = "aac_latm",
-    .p.long_name     = NULL_IF_CONFIG_SMALL("AAC LATM (Advanced Audio Coding LATM syntax)"),
+    CODEC_LONG_NAME("AAC LATM (Advanced Audio Coding LATM syntax)"),
     .p.type          = AVMEDIA_TYPE_AUDIO,
     .p.id            = AV_CODEC_ID_AAC_LATM,
     .priv_data_size  = sizeof(struct LATMContext),
@@ -593,10 +591,8 @@ const FFCodec ff_aac_latm_decoder = {
         AV_SAMPLE_FMT_FLTP, AV_SAMPLE_FMT_NONE
     },
     .p.capabilities  = AV_CODEC_CAP_CHANNEL_CONF | AV_CODEC_CAP_DR1,
-    .caps_internal   = FF_CODEC_CAP_INIT_THREADSAFE | FF_CODEC_CAP_INIT_CLEANUP,
-#if FF_API_OLD_CHANNEL_LAYOUT
-    .p.channel_layouts = aac_channel_layout,
-#endif
+    .caps_internal   = FF_CODEC_CAP_INIT_CLEANUP,
+    CODEC_OLD_CHANNEL_LAYOUTS_ARRAY(aac_channel_layout)
     .p.ch_layouts    = aac_ch_layout,
     .flush = flush,
     .p.profiles      = NULL_IF_CONFIG_SMALL(ff_aac_profiles),

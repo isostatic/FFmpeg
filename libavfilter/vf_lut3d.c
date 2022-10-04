@@ -29,13 +29,11 @@
 #include "float.h"
 
 #include "libavutil/opt.h"
-#include "libavutil/file.h"
-#include "libavutil/intreadwrite.h"
+#include "libavutil/file_open.h"
 #include "libavutil/intfloat.h"
 #include "libavutil/avassert.h"
 #include "libavutil/avstring.h"
 #include "drawutils.h"
-#include "formats.h"
 #include "internal.h"
 #include "video.h"
 #include "lut3d.h"
@@ -1150,9 +1148,9 @@ static int config_input(AVFilterLink *inlink)
         av_assert0(0);
     }
 
-    if (ARCH_X86) {
-        ff_lut3d_init_x86(lut3d, desc);
-    }
+#if ARCH_X86
+    ff_lut3d_init_x86(lut3d, desc);
+#endif
 
     return 0;
 }

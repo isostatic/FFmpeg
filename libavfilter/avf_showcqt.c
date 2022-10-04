@@ -1187,6 +1187,7 @@ static int plot_cqt(AVFilterContext *ctx, AVFrame **frameout)
             UPDATE_TIME(s->sono_time);
         }
         out->pts = s->next_pts;
+        out->duration = PTS_STEP;
         s->next_pts += PTS_STEP;
     }
     s->sono_count = (s->sono_count + 1) % s->count;
@@ -1418,8 +1419,9 @@ static int config_output(AVFilterLink *outlink)
         s->update_sono = update_sono_yuv;
     }
 
-    if (ARCH_X86)
-        ff_showcqt_init_x86(s);
+#if ARCH_X86
+    ff_showcqt_init_x86(s);
+#endif
 
     if ((ret = init_cqt(s)) < 0)
         return ret;

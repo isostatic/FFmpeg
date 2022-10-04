@@ -78,6 +78,7 @@ tools/target_dem_%_fuzzer$(EXESUF): $(FF_DEP_LIBS)
 CONFIGURABLE_COMPONENTS =                                           \
     $(wildcard $(FFLIBS:%=$(SRC_PATH)/lib%/all*.c))                 \
     $(SRC_PATH)/libavcodec/bitstream_filters.c                      \
+    $(SRC_PATH)/libavcodec/hwaccels.h                               \
     $(SRC_PATH)/libavcodec/parsers.c                                \
     $(SRC_PATH)/libavformat/protocols.c                             \
 
@@ -90,7 +91,7 @@ ffbuild/.config: $(CONFIGURABLE_COMPONENTS)
 SUBDIR_VARS := CLEANFILES FFLIBS HOSTPROGS TESTPROGS TOOLS               \
                HEADERS ARCH_HEADERS BUILT_HEADERS SKIPHEADERS            \
                ARMV5TE-OBJS ARMV6-OBJS ARMV8-OBJS VFP-OBJS NEON-OBJS     \
-               ALTIVEC-OBJS VSX-OBJS MMX-OBJS X86ASM-OBJS                \
+               ALTIVEC-OBJS VSX-OBJS RVV-OBJS MMX-OBJS X86ASM-OBJS       \
                MIPSFPU-OBJS MIPSDSPR2-OBJS MIPSDSP-OBJS MSA-OBJS         \
                MMI-OBJS LSX-OBJS LASX-OBJS OBJS SLIBOBJS SHLIBOBJS       \
                STLIBOBJS HOSTOBJS TESTOBJS
@@ -121,6 +122,7 @@ $(PROGS): %$(PROGSSUF)$(EXESUF): %$(PROGSSUF)_g$(EXESUF)
 ifeq ($(STRIPTYPE),direct)
 	$(STRIP) -o $@ $<
 else
+	$(RM) $@
 	$(CP) $< $@
 	$(STRIP) $@
 endif

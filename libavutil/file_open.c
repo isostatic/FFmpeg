@@ -17,7 +17,8 @@
  */
 
 #include "config.h"
-#include "internal.h"
+#include "avutil.h"
+#include "file_open.h"
 #include "mem.h"
 #include <stdarg.h>
 #include <fcntl.h>
@@ -45,7 +46,7 @@ static int win32_open(const char *filename_utf8, int oflag, int pmode)
     wchar_t *filename_w;
 
     /* convert UTF-8 to wide chars */
-    if (utf8towchar(filename_utf8, &filename_w))
+    if (get_extended_win32_path(filename_utf8, &filename_w))
         return -1;
     if (!filename_w)
         goto fallback;

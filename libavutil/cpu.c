@@ -54,18 +54,21 @@ static atomic_int cpu_count = ATOMIC_VAR_INIT(-1);
 
 static int get_cpu_flags(void)
 {
-    if (ARCH_MIPS)
-        return ff_get_cpu_flags_mips();
-    if (ARCH_AARCH64)
-        return ff_get_cpu_flags_aarch64();
-    if (ARCH_ARM)
-        return ff_get_cpu_flags_arm();
-    if (ARCH_PPC)
-        return ff_get_cpu_flags_ppc();
-    if (ARCH_X86)
-        return ff_get_cpu_flags_x86();
-    if (ARCH_LOONGARCH)
-        return ff_get_cpu_flags_loongarch();
+#if ARCH_MIPS
+    return ff_get_cpu_flags_mips();
+#elif ARCH_AARCH64
+    return ff_get_cpu_flags_aarch64();
+#elif ARCH_ARM
+    return ff_get_cpu_flags_arm();
+#elif ARCH_PPC
+    return ff_get_cpu_flags_ppc();
+#elif ARCH_RISCV
+    return ff_get_cpu_flags_riscv();
+#elif ARCH_X86
+    return ff_get_cpu_flags_x86();
+#elif ARCH_LOONGARCH
+    return ff_get_cpu_flags_loongarch();
+#endif
     return 0;
 }
 
@@ -177,6 +180,14 @@ int av_parse_cpu_caps(unsigned *flags, const char *s)
 #elif ARCH_LOONGARCH
         { "lsx",      NULL, 0, AV_OPT_TYPE_CONST, { .i64 = AV_CPU_FLAG_LSX      },    .unit = "flags" },
         { "lasx",     NULL, 0, AV_OPT_TYPE_CONST, { .i64 = AV_CPU_FLAG_LASX     },    .unit = "flags" },
+#elif ARCH_RISCV
+        { "rvi",      NULL, 0, AV_OPT_TYPE_CONST, { .i64 = AV_CPU_FLAG_RVI      },    .unit = "flags" },
+        { "rvf",      NULL, 0, AV_OPT_TYPE_CONST, { .i64 = AV_CPU_FLAG_RVF      },    .unit = "flags" },
+        { "rvd",      NULL, 0, AV_OPT_TYPE_CONST, { .i64 = AV_CPU_FLAG_RVD      },    .unit = "flags" },
+        { "rvv-i32",  NULL, 0, AV_OPT_TYPE_CONST, { .i64 = AV_CPU_FLAG_RVV_I32 },     .unit = "flags" },
+        { "rvv-f32",  NULL, 0, AV_OPT_TYPE_CONST, { .i64 = AV_CPU_FLAG_RVV_F32 },     .unit = "flags" },
+        { "rvv-i64",  NULL, 0, AV_OPT_TYPE_CONST, { .i64 = AV_CPU_FLAG_RVV_I64 },     .unit = "flags" },
+        { "rvv",      NULL, 0, AV_OPT_TYPE_CONST, { .i64 = AV_CPU_FLAG_RVV_F64 },     .unit = "flags" },
 #endif
         { NULL },
     };
@@ -252,18 +263,19 @@ void av_cpu_force_count(int count)
 
 size_t av_cpu_max_align(void)
 {
-    if (ARCH_MIPS)
-        return ff_get_cpu_max_align_mips();
-    if (ARCH_AARCH64)
-        return ff_get_cpu_max_align_aarch64();
-    if (ARCH_ARM)
-        return ff_get_cpu_max_align_arm();
-    if (ARCH_PPC)
-        return ff_get_cpu_max_align_ppc();
-    if (ARCH_X86)
-        return ff_get_cpu_max_align_x86();
-    if (ARCH_LOONGARCH)
-        return ff_get_cpu_max_align_loongarch();
+#if ARCH_MIPS
+    return ff_get_cpu_max_align_mips();
+#elif ARCH_AARCH64
+    return ff_get_cpu_max_align_aarch64();
+#elif ARCH_ARM
+    return ff_get_cpu_max_align_arm();
+#elif ARCH_PPC
+    return ff_get_cpu_max_align_ppc();
+#elif ARCH_X86
+    return ff_get_cpu_max_align_x86();
+#elif ARCH_LOONGARCH
+    return ff_get_cpu_max_align_loongarch();
+#endif
 
     return 8;
 }
