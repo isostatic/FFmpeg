@@ -19,10 +19,13 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
+#include <float.h>
+
 #include "opusenc_psy.h"
+#include "opus_celt.h"
 #include "opus_pvq.h"
 #include "opustab.h"
-#include "libavutil/qsort.h"
+#include "libavfilter/window_func.h"
 
 static float pvq_band_cost(CeltPVQ *pvq, CeltFrame *f, OpusRangeCoder *rc, int band,
                            float *bits, float lambda)
@@ -356,7 +359,7 @@ static void celt_gauge_psy_weight(OpusPsyContext *s, OpusPsyStep **start,
     rate /= s->avctx->sample_rate/frame_size;
 
     f_out->framebits = lrintf(rate);
-    f_out->framebits = FFMIN(f_out->framebits, OPUS_MAX_PACKET_SIZE*8);
+    f_out->framebits = FFMIN(f_out->framebits, OPUS_MAX_FRAME_SIZE * 8);
     f_out->framebits = FFALIGN(f_out->framebits, 8);
 }
 
@@ -467,16 +470,13 @@ int ff_opus_psy_celt_frame_process(OpusPsyContext *s, CeltFrame *f, int index)
 
     if (f->transient != start_transient_flag) {
         f->blocks = f->transient ? OPUS_BLOCK_SIZE(s->p.framesize)/CELT_OVERLAP : 1;
-        s->redo_analysis = 1;
         return 1;
     }
-
-    s->redo_analysis = 0;
 
     return 0;
 }
 
-void ff_opus_psy_postencode_update(OpusPsyContext *s, CeltFrame *f, OpusRangeCoder *rc)
+void ff_opus_psy_postencode_update(OpusPsyContext *s, CeltFrame *f)
 {
     int i, frame_size = OPUS_BLOCK_SIZE(s->p.framesize);
     int steps_out = s->p.frames*(frame_size/120);
@@ -506,7 +506,6 @@ void ff_opus_psy_postencode_update(OpusPsyContext *s, CeltFrame *f, OpusRangeCod
 
     s->avg_is_band /= (s->p.frames + 1);
 
-    s->cs_num = 0;
     s->steps_to_process = 0;
     s->buffered_steps -= steps_out;
     s->total_packets_out += s->p.frames;
@@ -518,7 +517,6 @@ av_cold int ff_opus_psy_init(OpusPsyContext *s, AVCodecContext *avctx,
 {
     int i, ch, ret;
 
-    s->redo_analysis = 0;
     s->lambda = 1.0f;
     s->options = options;
     s->avctx = avctx;

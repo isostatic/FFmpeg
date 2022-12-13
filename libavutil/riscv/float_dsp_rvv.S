@@ -18,7 +18,6 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-#include "config.h"
 #include "asm.S"
 
 // (a0) = (a1) * (a2) [0..a3-1]
@@ -167,7 +166,7 @@ endfunc
 
 // a0 = (a0).(a1) [0..a2-1]
 func ff_scalarproduct_float_rvv, zve32f
-        vsetvli      zero, zero, e32, m1, ta, ma
+        vsetivli     zero, 1, e32, m1, ta, ma
         vmv.s.x      v8, zero
 1:
         vsetvli      t0, a2, e32, m1, ta, ma
